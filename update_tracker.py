@@ -1,72 +1,102 @@
-import yfinance as yf
-import pandas as pd
-import numpy as np
-import sqlite3
+import os
 from datetime import datetime
+import pandas as pd
+import yfinance as yf
 
-print("--- [S2 Pro] Running Automated Background Scan ---")
+REGISTER_FILE = 'research_register.csv'
 
-def run_automated_scan():
-    conn = sqlite3.connect('s2pro_research_master.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS master_study_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            study_date TEXT,
-            asset_name TEXT,
-            ticker TEXT,
-            timeframe TEXT,
-            logged_ep REAL,
-            invalidation_sl REAL,
-            target_t1 REAL,
-            target_t4 REAL,
-            trend_condition TEXT,
-            current_market_price REAL,
-            evaluation_result TEXT
-        )
-    ''')
-    
-    assets_dict = {
-        "سابك (SABIC)": "2010.SR",
-        "مصرف الراجحي": "1120.SR",
-        "أرامكو السعودية": "2222.SR",
-        "الأهلي السعودي": "1180.SR",
-        "التصنيع الوطنية": "2130.SR",
-        "مؤشر تاسي (TASI)": "^TASI.SR"
-    }
-    
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    new_records_count = 0
-    
-    for aname, tk in assets_dict.items():
-        cursor.execute('SELECT id FROM master_study_log WHERE ticker = ? AND study_date LIKE ?', (tk, f"{today_str}%"))
-        if not cursor.fetchone():
-            try:
-                s_obj = yf.Ticker(tk)
-                cdf = s_obj.history(period="60d", interval="1d")
-                if not cdf.empty:
-                    cdf = cdf.dropna(subset=['Close'])
-                    cp = float(cdf['Close'].iloc[-1])
-                    ema50 = float(cdf['Close'].ewm(span=min(50, len(cdf)), adjust=False).mean().iloc[-1])
-                    atr = float((cdf['High'] - cdf['Low']).rolling(14).mean().iloc[-1]) if not np.isnan(cdf['High'].iloc[-1]) else cp * 0.02
-                    is_bul = cp > ema50
-                    tr_stat = "مسار صاعد (Bullish)" if is_bul else "مسار هابط (Bearish)"
-                    sl_v = cp - (1.5 * atr) if is_bul else cp + (1.5 * atr)
-                    rd = abs(cp - sl_v)
-                    t1_v = cp + rd if is_bul else cp - rd
-                    t4_v = cp + (4 * rd) if is_bul else cp - (4 * rd)
-                    
-                    cursor.execute('''
-                        INSERT INTO master_study_log (study_date, asset_name, ticker, timeframe, logged_ep, invalidation_sl, target_t1, target_t4, trend_condition, current_market_price, evaluation_result)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (datetime.now().strftime("%Y-%m-%d %H:%M"), aname, tk, "يومي (Daily)", cp, sl_v, t1_v, t4_v, tr_stat, cp, "⏳ قيد المراقبة (Active Tracking)"))
-                    conn.commit()
-                    new_records_count += 1
-            except Exception as e:
-                print(f"Error on {aname}: {e}")
-                
-    conn.close()
-    print(f"--- Scan Complete. New added today: {new_records_count} ---")
 
-if __name__ == "__main__":
-    run_automated_scan()
+def init_register():
+  if not os.path.exists(REGISTER_FILE):
+    initial_data = [
+        {
+            'ID': 1,
+            'Timestamp': datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'Asset': 'سابك (SABIC)',
+            'Ticker': '2010.SR',
+            'Timeframe': 'يومي (Daily)',
+            'Entry (EP)': 49.48,
+            'Live Price': 49.48,
+            'Target 1 (T1)': 50.73,
+            'Target 2 (T2)': 51.98,
+            'Target 3 (T3)': 53.23,
+            'Target 4 (T4)': 55.00,
+            'Stop Loss (SL)': 48.23,
+            'Status': 'قيد المراقبة (Active)',
+        },
+        {
+            'ID': 2,
+            'Timestamp': datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'Asset': 'مصرف الراجحي (Al Rajhi)',
+            'Ticker': '1120.SR',
+            'Timeframe': 'أسبوعي (Weekly)',
+            'Entry (EP)': 66.10,
+            'Live Price': 66.10,
+            'Target 1 (T1)': 67.58,
+            'Target 2 (T2)': 69.06,
+            'Target 3 (T3)': 70.54,
+            'Target 4 (T4)': 72.50,
+            'Stop Loss (SL)': 64.62,
+            'Status': 'قيد المراقبة (Active)',
+        },
+        {
+            'ID': 3,
+            'Timestamp': datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'Asset': 'مؤشر تاسي (TASI)',
+            'Ticker': '^TASI.SR',
+            'Timeframe': 'أسبوعي (Weekly)',
+            'Entry (EP)': 10720.28,
+            'Live Price': 10720.28,
+            'Target 1 (T1)': 10621.0,
+            'Target 2 (T2)': 10521.72,
+            'Target 3 (T3)': 10422.44,
+            'Target 4 (T4)': 10250.0,
+            'Stop Loss (SL)': 10819.56,
+            'Status': 'قيد المراقبة (Active)',
+        },
+    ]
+    df = pd.DataFrame(initial_data)
+    df.to_csv(REGISTER_FILE, index=False)
+
+
+def run_automated_tracking():
+  init_register()
+  df = pd.read_csv(REGISTER_FILE)
+  if df.empty:
+    return
+
+  for idx, row in df.iterrows():
+    ticker = str(row['Ticker'])
+    try:
+      stock = yf.Ticker(ticker)
+      hist = stock.history(period='1d')
+      if not hist.empty:
+        curr_p = float(hist['Close'].iloc[-1])
+        df.at[idx, 'Live Price'] = round(curr_p, 2)
+
+        t1 = float(row['Target 1 (T1)'])
+        sl = float(row['Stop Loss (SL)'])
+
+        # تقييم ذكي للمسار الصاعد أو الهابط
+        if 'تاسي' in str(row['Asset']) or 'TASI' in str(row['Asset']):
+          if curr_p <= t1:
+            df.at[idx, 'Status'] = '✅ نجح هبوطياً (Target Hit)'
+          elif curr_p >= sl:
+            df.at[idx, 'Status'] = '❌ فشل (Stopped Out)'
+          else:
+            df.at[idx, 'Status'] = '⏳ قيد المراقبة (Active)'
+        else:
+          if curr_p >= t1:
+            df.at[idx, 'Status'] = '✅ نجح (Target Hit)'
+          elif curr_p <= sl:
+            df.at[idx, 'Status'] = '❌ فشل (Stopped Out)'
+          else:
+            df.at[idx, 'Status'] = '⏳ قيد المراقبة (Active)'
+    except Exception as e:
+      print(f'Error tracking {ticker}: {e}')
+
+  df.to_csv(REGISTER_FILE, index=False)
+
+
+if __name__ == '__main__':
+  run_automated_tracking()
