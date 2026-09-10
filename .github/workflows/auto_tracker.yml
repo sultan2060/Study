@@ -1,37 +1,30 @@
-name: S2 Pro Automated Research Tracker
+name: S2 Pro Automated Scan
 
 on:
   schedule:
-    # يعمل تلقائياً كل 4 ساعات (يمكنك تعديل التوقيت حسب الرغبة)
-    - cron: '0 */4 * * *'
-  workflow_dispatch: # يتيح لك تشغيله يدوياً متى شئت من زر Actions في جيت هب
+    - cron: '0 13 * * *'
+  workflow_dispatch:
 
 jobs:
   run-tracker:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: |
-          pip install yfinance pandas numpy
+        uses: BSFishy/pip-action@v1
+        with:
+          packages: |
+            yfinance
+            pandas
+            numpy
 
-      - name: Run background evaluation script
+      - name: Run tracker script
         run: |
           python update_tracker.py
-
-      - name: Commit and push updated database
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config --global user.name "S2 Pro Bot"
-          git config --global user.email "bot@s2pro.research"
-          git add s2pro_research_master.db
-          git commit -m "Auto-update study ledger evaluation status [skip ci]" || exit 0
-          git push
