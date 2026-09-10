@@ -1,15 +1,15 @@
-name: S2 Pro Automated Scan
+name: S2 Pro 24/7 Autonomous Market Tracker
 
 on:
   schedule:
-    - cron: '0 13 * * *'
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 jobs:
-  run-tracker:
+  run-autonomous-tracker:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -17,14 +17,17 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
-        uses: BSFishy/pip-action@v1
-        with:
-          packages: |
-            yfinance
-            pandas
-            numpy
-
-      - name: Run tracker script
+      - name: Install Dependencies
         run: |
-          python update_tracker.py
+          python -m pip install --upgrade pip
+          pip install pandas yfinance streamlit requests
+
+      - name: Execute Tracker Script
+        run: python update_tracker.py
+
+      - name: Commit and Push Updated Register
+        run: |
+          git config --global user.name 'S2 Pro Automation Bot'
+          git config --global user.email 'bot@s2pro.research'
+          git add research_register.csv
+          git diff --quiet && git diff --cached --quiet || (git commit -m "Automated 24/7 research register synchronization [skip ci]" && git push)
