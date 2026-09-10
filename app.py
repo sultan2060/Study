@@ -173,7 +173,7 @@ for item in news_feed:
         <p style="font-weight: bold; color: #24292e; margin-bottom: 5px;">📌 {item['title']}</p>
         <p style="font-size: 12px; color: #586069; margin-bottom: 8px;">{'تحليل الأثر: يعكس التدفقات السعرية ومستويات التذبذب الفعلي.' if lang == 'العربية' else 'Impact Analysis: Reflects institutional liquidity flows.'}</p>
         <a href="{item['url']}" target="_blank" style="text-decoration: none; color: #0366d6; font-weight: bold; font-size: 13px;">
-            🔗 {'اضغط هنا لفتح الخبر والمصدر الأصلي' if lang == 'العربية' else 'Click here to open original news source'} ({item['source'])
+            🔗 {'اضغط هنا لفتح الخبر والمصدر الأصلي' if lang == 'العربية' else 'Click here to open original news source'} ({item['source']})
         </a>
     </div>
     """,
