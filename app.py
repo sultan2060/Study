@@ -199,7 +199,6 @@ else:
 REGISTER_FILE = "research_register.csv"
 
 if not os.path.exists(REGISTER_FILE):
-  # إنشاء ملف تجريبي افتراضي لكي يعمل السجل فوراً دون توقف
   initial_data = {
       "Date": ["2026-09-01", "2026-09-05", "2026-09-10"],
       "Asset": ["SABIC", "Al Rajhi Bank", "Saudi Aramco"],
@@ -207,7 +206,7 @@ if not os.path.exists(REGISTER_FILE):
       "Target Achieved": ["T2", "T4", "T1"],
       "Status": ["نجح / Success", "نجح / Success", "نجح / Success"],
   }
-  pd.DataFrame(initial_data).to_csv(REGISTER_FILE, index=File := False)
+  pd.DataFrame(initial_data).to_csv(REGISTER_FILE, index=False)
 
 reg_df = pd.read_csv(REGISTER_FILE)
 total_records = len(reg_df)
