@@ -52,7 +52,7 @@ timeframe_option = st.sidebar.selectbox(
     else ["Daily", "Weekly"],
 )
 
-# جلب البيانات اللحظية مع معالجة الأخطاء لضمان عدم ظهور قيم nan
+# جلب البيانات اللحظية ومعالجة الأخطاء
 try:
   live_stock = yf.Ticker(selected_ticker)
   live_df = live_stock.history(period="3mo")
@@ -186,29 +186,72 @@ for item in news_feed:
 
 st.markdown("---")
 
-# إدارة سجل البحث التجريبي مع الإنشاء التلقائي للملف إن لم يكن موجوداً
+# الرصد الآلي وتعبئة السجل بناءً على حركة السوق الحية دون تدخل بشري
 if lang == "العربية":
   st.markdown(
-      "### 📚 سجل البحث الأكاديمي والتجريبي (بديل المسح الميداني والرصد البشري)"
+      "### 📚 سجل البحث الأكاديمي والرصد الآلي المتزامن مع حركة السوق"
   )
 else:
-  st.markdown(
-      "### 📚 Academic Study Register (Automated Tracking vs Live Market)"
-  )
+  st.markdown("### 📚 Academic Study Register (Autonomous Market Tracking)")
 
 REGISTER_FILE = "research_register.csv"
 
-if not os.path.exists(REGISTER_FILE):
-  initial_data = {
-      "Date": ["2026-09-01", "2026-09-05", "2026-09-10"],
-      "Asset": ["SABIC", "Al Rajhi Bank", "Saudi Aramco"],
-      "Entry Price": [75.50, 88.20, 27.40],
-      "Target Achieved": ["T2", "T4", "T1"],
-      "Status": ["نجح / Success", "نجح / Success", "نجح / Success"],
-  }
-  pd.DataFrame(initial_data).to_csv(REGISTER_FILE, index=False)
 
-reg_df = pd.read_csv(REGISTER_FILE)
+# دالة لتوليد سجل آلي حي بناءً على الأصول المتاحة وحالة الأسعار
+def generate_autonomous_register():
+  data = []
+  for name, ticker in assets_dict.items():
+    try:
+      df_t = yf.Ticker(ticker).history(period="1mo")
+      if not df_t.empty:
+        p_entry = float(df_t["Close"].iloc[0])
+        p_max = float(df_t["High"].max())
+        p_current = float(df_t["Close"].iloc[-1])
+
+        # حساب الأهداف تلقائياً لكل أصل
+        atr_t = float((df_t["High"] - df_t["Low"]).rolling(14).mean().iloc[-1])
+        t1 = p_entry + atr_t
+        t2 = p_entry + (2 * atr_t)
+        t3 = p_entry + (3 * atr_t)
+        t4 = p_entry + (4 * atr_t)
+
+        # تحديد الهدف المتحقق آلياً
+        target_achieved = "قيد المتابعة / Pending"
+        status = "قيد التتبع / Tracking"
+
+        if p_max >= t4:
+          target_achieved = "T4"
+          status = "نجح / Success"
+        elif p_max >= t3:
+          target_achieved = "T3"
+          status = "نجح / Success"
+        elif p_max >= t2:
+          target_achieved = "T2"
+          status = "نجح / Success"
+        elif p_max >= t1:
+          target_achieved = "T1"
+          status = "نجح / Success"
+
+        data.append({
+            "Date": str(df_t.index[-1].date()),
+            "Asset": name,
+            "Entry Price": round(p_entry, 2),
+            "Current Price": round(p_current, 2),
+            "Target Achieved": target_achieved,
+            "Status": status,
+        })
+    except:
+      continue
+  return pd.DataFrame(data)
+
+
+# تحديث أو إنشاء الملف آلياً
+reg_df = generate_autonomous_register()
+if not reg_df.empty:
+  reg_df.to_csv(REGISTER_FILE, index=False)
+elif os.path.exists(REGISTER_FILE):
+  reg_df = pd.read_csv(REGISTER_FILE)
+
 total_records = len(reg_df)
 
 if total_records > 0:
@@ -219,9 +262,9 @@ if total_records > 0:
 
   k1, k2, k3 = st.columns(3)
   if lang == "العربية":
-    k1.metric("إجمالي العينة المدروسة", total_records)
+    k1.metric("إجمالي عينة الرصد الآلي", total_records)
     k2.metric("الصفقات المحققة للأهداف", success_hits)
-    k3.metric("نسبة النجاح الإجمالية (Win Rate)", f"{hit_rate:.1f}%")
+    k3.metric("نسبة النجاح الآلية (Win Rate)", f"{hit_rate:.1f}%")
   else:
     k1.metric("Total Sample Size", total_records)
     k2.metric("Successful Targets", success_hits)
