@@ -31,8 +31,31 @@ def init_db():
 
 init_db()
 
-# دالة المسح والتسجيل التلقائي عند فتح التطبيق (إذا لم تكن أصول اليوم مسجلة)
-def auto_scan_and_seed_on_startup():
+lang = st.sidebar.selectbox("Language / لغة الواجهة", ["العربية", "English"])
+
+if lang == "العربية":
+    st.markdown("""
+    <div style="background-color: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 12px; color: #31333F; margin-bottom: 15px; text-align: right;" dir="rtl">
+    <b>⚠️ إخلاء مسؤولية بحثية:</b> النظام مخصص لأغراض الدراسة الأكاديمية ونمذجة الأسواق المالية.
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.title("🇸🇦 S2 Pro - Automated Research Matrix")
+    st.markdown("منظومة الرصد والتسجيل التراكمي المعتمد للسوق السعودي")
+    run_scan_btn = st.button("🔄 تشغيل ومزامنة الرصد الآلي لجميع الأصول")
+else:
+    st.markdown("""
+    <div style="background-color: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 12px; color: #31333F;">
+    <b>⚠️ Academic Disclaimer:</b> Automated research matrix and market modeling system.
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.title("🇸🇦 S2 Pro - Automated Research Matrix")
+    st.markdown("Automated Master Research Log & Quantitative Evaluation Matrix")
+    run_scan_btn = st.button("🔄 Run & Sync Automated Asset Scan")
+
+# تنفيذ المسح الآلي عند الضغط حصرياً لضمان عدم حدوث Timeout عند فتح الصفحة
+if run_scan_btn:
     assets = {
         "سابك (SABIC)": "2010.SR",
         "مصرف الراجحي": "1120.SR",
@@ -43,89 +66,66 @@ def auto_scan_and_seed_on_startup():
     }
     today_str = datetime.now().strftime("%Y-%m-%d")
     
-    conn = sqlite3.connect('s2pro_research_master.db')
-    cursor = conn.cursor()
-    
-    for asset_name, ticker in assets.items():
-        # تحقق هل تم رصد هذا السهم اليوم أم لا
-        cursor.execute('''
-            SELECT id FROM master_study_log 
-            WHERE ticker = ? AND study_date LIKE ?
-        ''', (ticker, f"{today_str}%"))
+    with st.spinner("جاري المسح الآلي وسحب بيانات الأصول..." if lang == "العربية" else "Processing automated asset scan..."):
+        conn = sqlite3.connect('s2pro_research_master.db')
+        cursor = conn.cursor()
         
-        exists = cursor.fetchone()
-        if not exists:
-            try:
-                stock_obj = yf.Ticker(ticker)
-                df = stock_obj.history(period="60d", interval="1d")
-                if not df.empty:
-                    df = df.dropna(subset=['Close'])
-                    span_val = min(50, len(df))
-                    df['EMA_50'] = df['Close'].ewm(span=span_val, adjust=False).mean()
-                    
-                    df['H-L'] = df['High'] - df['Low']
-                    df['H-PC'] = abs(df['High'] - df['Close'].shift(1))
-                    df['L-PC'] = abs(df['Low'] - df['Close'].shift(1))
-                    df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
-                    df['ATR'] = df['TR'].rolling(window=min(14, len(df))).mean()
-                    
-                    last_row = df.iloc[-1]
-                    close_price = float(last_row['Close'])
-                    ema_50 = float(last_row['EMA_50']) if not np.isnan(last_row['EMA_50']) else close_price
-                    atr_val = last_row['ATR']
-                    atr = float(atr_val) if not np.isnan(atr_val) else (close_price * 0.02)
-                    
-                    is_bullish = close_price > ema_50
-                    trend_status = "مسار صاعد (Bullish)" if is_bullish else "مسار هابط (Bearish)"
-                    
-                    sl = close_price - (1.5 * atr) if is_bullish else close_price + (1.5 * atr)
-                    risk_distance = abs(close_price - sl)
-                    t1 = close_price + (1.0 * risk_distance) if is_bullish else close_price - (1.0 * risk_distance)
-                    t4 = close_price + (4.0 * risk_distance) if is_bullish else close_price - (4.0 * risk_distance)
-                    
-                    eval_status = "⏳ قيد المراقبة (Active Tracking)"
-                    current_date_full = datetime.now().strftime("%Y-%m-%d %H:%M")
+        for asset_name, ticker in assets.items():
+            cursor.execute('''
+                SELECT id FROM master_study_log 
+                WHERE ticker = ? AND study_date LIKE ?
+            ''', (ticker, f"{today_str}%"))
+            
+            exists = cursor.fetchone()
+            if not exists:
+                try:
+                    stock_obj = yf.Ticker(ticker)
+                    df = stock_obj.history(period="60d", interval="1d")
+                    if not df.empty:
+                        df = df.dropna(subset=['Close'])
+                        span_val = min(50, len(df))
+                        df['EMA_50'] = df['Close'].ewm(span=span_val, adjust=False).mean()
+                        
+                        df['H-L'] = df['High'] - df['Low']
+                        df['H-PC'] = abs(df['High'] - df['Close'].shift(1))
+                        df['L-PC'] = abs(df['Low'] - df['Close'].shift(1))
+                        df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
+                        df['ATR'] = df['TR'].rolling(window=min(14, len(df))).mean()
+                        
+                        last_row = df.iloc[-1]
+                        close_price = float(last_row['Close'])
+                        ema_50 = float(last_row['EMA_50']) if not np.isnan(last_row['EMA_50']) else close_price
+                        atr_val = last_row['ATR']
+                        atr = float(atr_val) if not np.isnan(atr_val) else (close_price * 0.02)
+                        
+                        is_bullish = close_price > ema_50
+                        trend_status = "مسار صاعد (Bullish)" if is_bullish else "مسار هابط (Bearish)"
+                        
+                        sl = close_price - (1.5 * atr) if is_bullish else close_price + (1.5 * atr)
+                        risk_distance = abs(close_price - sl)
+                        t1 = close_price + (1.0 * risk_distance) if is_bullish else close_price - (1.0 * risk_distance)
+                        t4 = close_price + (4.0 * risk_distance) if is_bullish else close_price - (4.0 * risk_distance)
+                        
+                        eval_status = "⏳ قيد المراقبة (Active Tracking)"
+                        current_date_full = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-                    cursor.execute('''
-                        INSERT INTO master_study_log (study_date, asset_name, ticker, timeframe, logged_ep, invalidation_sl, target_t1, target_t4, trend_condition, current_market_price, evaluation_result)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (current_date_full, asset_name, ticker, "يومي (Daily)", close_price, sl, t1, t4, trend_status, close_price, eval_status))
-                    conn.commit()
-            except Exception as e:
-                pass
-    conn.close()
-
-# تشغيل الفحص الآلي فور فتح الصفحة
-auto_scan_and_seed_on_startup()
-
-lang = st.sidebar.selectbox("Language / لغة الواجهة", ["العربية", "English"])
-
-if lang == "العربية":
-    st.markdown("""
-    <div style="background-color: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 12px; color: #31333F; margin-bottom: 15px; text-align: right;" dir="rtl">
-    <b>⚠️ إخلاء مسؤولية بحثية:</b> النظام يقوم بالرصد والتسجيل الآلي الشامل لأغراض الدراسة الأكاديمية ونمذجة الأسواق المالية.
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.title("🇸🇦 S2 Pro - Fully Automated Research Matrix")
-    st.markdown("منظومة الرصد والتسجيل التراكمي المعتمد (تشغيل آلي بالكامل بدون تدخل بشري)")
-else:
-    st.markdown("""
-    <div style="background-color: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 12px; color: #31333F;">
-    <b>⚠️ Academic Disclaimer:</b> Fully automated research matrix and market modeling system.
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.title("🇸🇦 S2 Pro - Fully Automated Research Matrix")
-    st.markdown("Automated Master Research Log & Quantitative Evaluation Matrix")
+                        cursor.execute('''
+                            INSERT INTO master_study_log (study_date, asset_name, ticker, timeframe, logged_ep, invalidation_sl, target_t1, target_t4, trend_condition, current_market_price, evaluation_result)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (current_date_full, asset_name, ticker, "يومي (Daily)", close_price, sl, t1, t4, trend_status, close_price, eval_status))
+                        conn.commit()
+                except Exception as e:
+                    pass
+        conn.close()
+    st.success("تم تحديث ورصد الأصول بنجاح!" if lang == "العربية" else "Assets successfully scanned and synced!")
 
 st.markdown("---")
 if lang == "العربية":
     st.markdown("### 📚 السجل التراكمي المعتمد للأبحاث (Master Study Register)")
-    st.caption("يعرض هذا السجل الأسهم المرصودة آلياً، ويوضح بدقة التمييز بين (سعر الرصد الثابت وقت الدراسة EP) و(السعر الحقيقي اللحظي للسوق).")
+    st.caption("يعرض السجل التمييز الدقيق بين (سعر الرصد الثابت EP) و(السعر الحقيقي اللحظي للسوق).")
 else:
     st.markdown("### 📚 Master Academic Study Register")
-    st.caption("Automatically tracks assets and distinguishes clearly between Logged Entry Price (EP) and Live Market Price.")
+    st.caption("Tracks assets distinguishing between Logged Entry Price (EP) and Live Market Price.")
 
 try:
     conn = sqlite3.connect('s2pro_research_master.db')
@@ -144,7 +144,6 @@ try:
             t1 = row['target_t1']
             trend = row['trend_condition']
 
-            # جلب السعر الحقيقي اللحظي من السوق
             try:
                 live_obj = yf.Ticker(ticker)
                 hist_df = live_obj.history(period="1d")
@@ -152,7 +151,6 @@ try:
             except:
                 curr_price = logged_ep
 
-            # التقييم الرياضي
             if "صاعد" in trend or "Bullish" in trend:
                 if curr_price >= t1:
                     eval_res = "✅ نجح (Target Hit)"
@@ -202,7 +200,6 @@ try:
             c4.metric("Statistical Hit Rate", f"{hit_ratio:.1f}%")
 
         st.markdown("---")
-        # عرض الجدول مع تمييز أعمدة السعر الثابت وسعر السوق
         st.dataframe(display_df, use_container_width=True)
 
         export_csv = display_df.to_csv(index=False).encode('utf-8')
@@ -213,7 +210,7 @@ try:
             mime="text/csv"
         )
     else:
-        st.info("جاري تحميل وإعداد السجل الآلي..." if lang == "العربية" else "Initializing automated master log...")
+        st.info("السجل فارغ. انقر على زر (تشغيل ومزامنة الرصد الآلي) بالأعلى لبدء تسجيل الأصول." if lang == "العربية" else "Register is empty. Click the scan button above to record assets.")
 
 except Exception as db_err:
     st.error(f"Error in master database register: {db_err}")
