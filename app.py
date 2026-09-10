@@ -1,4 +1,4 @@
-import streamlit as st
+ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -6,23 +6,26 @@ import urllib.parse
 import sqlite3
 from datetime import datetime
 
-st.set_page_config(page_title="S2 Pro - TASI Quant Matrix", layout="centered")
+st.set_page_config(page_title="S2 Pro - TASI Research Matrix", layout="centered")
 
-# --- تهيئة قاعدة البيانات المحلية لتسجيل الأبحاث تلقائياً ---
+# --- تهيئة قاعدة البيانات التراكمية لسجلات الدراسات والأبحاث ---
 def init_db():
-    conn = sqlite3.connect('s2pro_research.db')
+    conn = sqlite3.connect('s2pro_research_master.db')
     cursor = conn.cursor()
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS tracking_log (
+        CREATE TABLE IF NOT EXISTS master_study_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date TEXT,
-            asset TEXT,
+            study_date TEXT,
+            asset_name TEXT,
+            ticker TEXT,
             timeframe TEXT,
-            entry_price REAL,
-            stop_loss REAL,
-            target_1 REAL,
-            target_4 REAL,
-            trend_status TEXT
+            logged_ep REAL,
+            invalidation_sl REAL,
+            target_t1 REAL,
+            target_t4 REAL,
+            trend_condition TEXT,
+            current_market_price REAL,
+            evaluation_result TEXT
         )
     ''')
     conn.commit()
@@ -30,28 +33,28 @@ def init_db():
 
 init_db()
 
-def save_to_research_log(date, asset, tf, ep, sl, t1, t4, trend):
-    conn = sqlite3.connect('s2pro_research.db')
+def save_to_master_log(date, asset, ticker, tf, ep, sl, t1, t4, trend, current_p, eval_res):
+    conn = sqlite3.connect('s2pro_research_master.db')
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO tracking_log (date, asset, timeframe, entry_price, stop_loss, target_1, target_4, trend_status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (date, asset, tf, ep, sl, t1, t4, trend))
+        INSERT INTO master_study_log (study_date, asset_name, ticker, timeframe, logged_ep, invalidation_sl, target_t1, target_t4, trend_condition, current_market_price, evaluation_result)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (date, asset, ticker, tf, ep, sl, t1, t4, trend, current_p, eval_res))
     conn.commit()
     conn.close()
 
-# اختيار لغة الواجهة من الشريط الجانبي
+# واجهة المستخدم اللغوية
 lang = st.sidebar.selectbox("Language / لغة الواجهة", ["العربية", "English"])
 
 if lang == "العربية":
     st.markdown("""
     <div style="background-color: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 12px; color: #31333F; margin-bottom: 15px; text-align: right;" dir="rtl">
-    <b>⚠️ إخلاء مسؤولية:</b> التطبيق لأغراض الدراسة والبحث العلمي فقط، ولا يقدم أي توصيات أو استشارات مالية.
+    <b>⚠️ إخلاء مسؤولية بحثية:</b> النظام مخصص لأغراض الدراسة الأكاديمية ونمذجة الأسواق المالية ولا يعد استشارة استثمارية.
     </div>
     """, unsafe_allow_html=True)
 
-    st.title("🇸🇦 S2 Pro - TASI Quant Matrix")
-    st.markdown("منظومة التحليل الكمي والربط الإخباري للأسهم السعودية")
+    st.title("🇸🇦 S2 Pro - Academic Study Log")
+    st.markdown("منظومة الرصد والتسجيل التراكمي المعتمد للورقة البحثية (TASI Market Matrix)")
 
     assets = {
         "سابك (SABIC)": "2010.SR",
@@ -62,7 +65,7 @@ if lang == "العربية":
         "مؤشر تاسي (TASI)": "^TASI.SR"
     }
 
-    selected_asset_name = st.selectbox("اختر الأصل أو السهم للتداول:", list(assets.keys()))
+    selected_asset_name = st.selectbox("اختر الأصل أو السهم للدراسة:", list(assets.keys()))
     ticker_symbol = assets[selected_asset_name]
 
     timeframe_options = {
@@ -72,20 +75,20 @@ if lang == "العربية":
         "سنوي (Yearly)": {"interval": "1mo", "period": "max"}
     }
 
-    selected_tf_name = st.selectbox("اختر الفريم الزمني (يدعم كافة الأطر اليومية والأسبوعية والشهرية والسنوية):", list(timeframe_options.keys()))
+    selected_tf_name = st.selectbox("اختر الإطار الزمني للدراسة:", list(timeframe_options.keys()))
     tf_config = timeframe_options[selected_tf_name]
 
-    run_btn = st.button("تحليـل وتشغيل الرادار الفني والإخباري وتثبيت السجل")
+    run_btn = st.button("تنفيذ التحليل وحفظ نقطة الرصد في السجل البحثي")
     
 else:
     st.markdown("""
     <div style="background-color: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 12px; color: #31333F; margin-bottom: 15px;">
-    <b>⚠️ Disclaimer:</b> For study and research purposes only; this application does not provide financial or investment advice.
+    <b>⚠️ Academic Disclaimer:</b> For academic research and modeling purposes only.
     </div>
     """, unsafe_allow_html=True)
 
-    st.title("🇸🇦 S2 Pro - TASI Quant Matrix")
-    st.markdown("Quantitative Analysis & News Matrix for Saudi Equities")
+    st.title("🇸🇦 S2 Pro - Academic Study Log")
+    st.markdown("Master Research Log & Quantitative Evaluation Matrix for TASI")
 
     assets = {
         "SABIC": "2010.SR",
@@ -96,7 +99,7 @@ else:
         "TASI Index": "^TASI.SR"
     }
 
-    selected_asset_name = st.selectbox("Select Asset:", list(assets.keys()))
+    selected_asset_name = st.selectbox("Select Asset for Study:", list(assets.keys()))
     ticker_symbol = assets[selected_asset_name]
 
     timeframe_options = {
@@ -109,10 +112,10 @@ else:
     selected_tf_name = st.selectbox("Select Timeframe:", list(timeframe_options.keys()))
     tf_config = timeframe_options[selected_tf_name]
 
-    run_btn = st.button("Run Technical & News Radar & Log Data")
+    run_btn = st.button("Run Analysis & Record in Master Study Log")
 
 if run_btn:
-    with st.spinner("Processing market data..." if lang == "English" else "جاري معالجة بيانات السوق وتسجيلها في السجل البحثي..."):
+    with st.spinner("Processing analytical matrix..." if lang == "English" else "جاري استخراج المعطيات الرياضية وحفظها في السجل الأكاديمي..."):
         try:
             stock_obj = yf.Ticker(ticker_symbol)
             df = stock_obj.history(period=tf_config["period"], interval=tf_config["interval"])
@@ -137,9 +140,9 @@ if run_btn:
                 is_bullish = close_price > ema_50
                 
                 if lang == "العربية":
-                    trend_status = "مسار صاعد (Bullish Trend)" if is_bullish else "مسار هابط / تصحيحي (Bearish/Correction)"
+                    trend_status = "مسار صاعد (Bullish)" if is_bullish else "مسار هابط (Bearish)"
                 else:
-                    trend_status = "Bullish Trend" if is_bullish else "Bearish / Correction Trend"
+                    trend_status = "Bullish" if is_bullish else "Bearish"
                     
                 status_color = "green" if is_bullish else "orange"
                 dot_icon = "🟢" if is_bullish else "🔴"
@@ -148,107 +151,140 @@ if run_btn:
                 risk_distance = abs(close_price - sl)
                 
                 t1 = close_price + (1.0 * risk_distance) if is_bullish else close_price - (1.0 * risk_distance)
-                t2 = close_price + (2.0 * risk_distance) if is_bullish else close_price - (2.0 * risk_distance)
-                t3 = close_price + (3.0 * risk_distance) if is_bullish else close_price - (3.0 * risk_distance)
                 t4 = close_price + (4.0 * risk_distance) if is_bullish else close_price - (4.0 * risk_distance)
 
-                # حفظ السجل تلقائياً في قاعدة البيانات
+                # تحديد حالة التقييم المبدئي الحالية للمقارنة
+                if is_bullish:
+                    eval_status = "قيد التتبع الميداني (Pending)"
+                else:
+                    eval_status = "قيد التتبع الميداني (Pending)"
+
+                # تسجيل المعطيات في السجل التراكمي الرئيسي
                 current_date = datetime.now().strftime("%Y-%m-%d %H:%M")
-                save_to_research_log(current_date, selected_asset_name, selected_tf_name, close_price, sl, t1, t4, trend_status)
+                save_to_master_log(current_date, selected_asset_name, ticker_symbol, selected_tf_name, close_price, sl, t1, t4, trend_status, close_price, eval_status)
 
                 st.markdown(f"### {selected_asset_name} [{selected_tf_name}] | <span style='color:{status_color};'>{trend_status}</span>", unsafe_allow_html=True)
                 st.markdown(f"<h1 style='text-align: center;'>{dot_icon}</h1>", unsafe_allow_html=True)
                 
                 col1, col2 = st.columns(2)
                 if lang == "العربية":
-                    col1.metric("السعر الحالي (EP)", f"{close_price:.2f} ر.س")
-                    col2.metric("مستوى الارتكاز / وقف الفاعلية (SL)", f"{sl:.2f} ر.س")
+                    col1.metric("سعر الرصد الأساسي (EP)", f"{close_price:.2f} ر.س")
+                    col2.metric("وقف الفاعلية الهيكلي (SL)", f"{sl:.2f} ر.س")
                     st.markdown("---")
-                    st.markdown("#### الأهداف السعرية الديناميكية:")
+                    st.markdown("#### المستهدفات المعيارية للورقة البحثية:")
                     st.info(f"Target 1 (1x Risk): **{t1:.2f} ر.س**")
-                    st.success(f"Target 2 (2x Risk): **{t2:.2f} ر.س**")
-                    st.warning(f"Target 3 (3x Risk): **{t3:.2f} ر.س**")
                     st.error(f"Target 4 (4x Risk): **{t4:.2f} ر.س**")
                 else:
-                    col1.metric("Current Price (EP)", f"{close_price:.2f} SAR")
-                    col2.metric("Support / Invalidation (SL)", f"{sl:.2f} SAR")
+                    col1.metric("Logged Entry Price (EP)", f"{close_price:.2f} SAR")
+                    col2.metric("Structural SL", f"{sl:.2f} SAR")
                     st.markdown("---")
-                    st.markdown("#### Dynamic Price Targets:")
+                    st.markdown("#### Research Benchmark Targets:")
                     st.info(f"Target 1 (1x Risk): **{t1:.2f} SAR**")
-                    st.success(f"Target 2 (2x Risk): **{t2:.2f} SAR**")
-                    st.warning(f"Target 3 (3x Risk): **{t3:.2f} SAR**")
                     st.error(f"Target 4 (4x Risk): **{t4:.2f} SAR**")
 
-                # قسم الأخبار مع معالجة الروابط الآمنة
-                st.markdown("---")
-                if lang == "العربية":
-                    st.markdown("#### 📰 رادار الأخبار الحية وتحليل التأثير:")
-                else:
-                    st.markdown("#### 📰 Live News Radar & Impact Analysis:")
-                
-                news_list = stock_obj.news
-                if news_list:
-                    for item in news_list[:3]:
-                        title = item.get('title', 'Corporate News Update')
-                        publisher = item.get('publisher', 'Financial Wire')
-                        link = item.get('link', '')
-                        
-                        if not link or not link.startswith("http"):
-                            query_str = urllib.parse.quote(f"{selected_asset_name} {title}")
-                            link = f"https://www.google.com/search?q={query_str}"
-                            publisher_display = f"{publisher} (بحث Google)" if lang == "العربية" else f"{publisher} (Google Search)"
-                        else:
-                            publisher_display = publisher
-
-                        st.markdown(f"**📌 {title}**")
-                        if lang == "العربية":
-                            st.caption("🔍 **تحليل التأثير على السهم:** يعكس هذا الخبر تدفقات السيولة المؤسسية ويساهم في توجيه نطاق التذبذب (`ATR`). *(تحليل بحثي غير معتمد)*.")
-                            btn_label = f"🔗 فتح المصدر: {publisher_display}"
-                        else:
-                            st.caption("🔍 **Impact Analysis:** Reflects institutional liquidity and directs volatility (`ATR`). *(Unverified research analysis)*.")
-                            btn_label = f"🔗 Open Source: {publisher_display}"
-                        
-                        st.link_button(btn_label, link)
-                        st.markdown("---")
-                else:
-                    if lang == "العربية":
-                        st.info("لا توجد أخبار مسجلة حالياً لهذا السهم.")
-                    else:
-                        st.info("No current news registered for this asset.")
+                st.success("✅ تم توثيق وحفظ نقطة الرصد بنجاح في السجل التراكمي المعتمد للأبحاث." if lang == "العربية" else "✅ Successfully recorded in the Master Academic Study Log.")
 
         except Exception as e:
-            if lang == "العربية":
-                st.error(f"حدث خطأ أثناء معالجة البيانات: {e}")
-            else:
-                st.error(f"An error occurred while processing data: {e}")
+            st.error(f"Error: {e}")
 
-# --- قسم استعراض سجل الأبحاث المحفوظ تلقائياً ---
+# --- قسم استعراض سجل الأبحاث الرئيسي وتصدير الجداول العلمية ---
 st.markdown("---")
 if lang == "العربية":
-    with st.expander("📊 سجل الأبحاث والبيانات المرصودة (Research Log)"):
-        try:
-            conn = sqlite3.connect('s2pro_research.db')
-            log_df = pd.read_sql_query("SELECT * FROM tracking_log ORDER BY id DESC", conn)
-            conn.close()
-            if not log_df.empty:
-                st.dataframe(log_df)
-                csv_data = log_df.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 تحميل السجل البحثي بصيغة CSV للتحليل", csv_data, "s2pro_research_log.csv", "text/csv")
-            else:
-                st.info("لا توجد بيانات مسجلة حتى الآن. قم بتشغيل التحليل لتسجيل النقطة الأولى.")
-        except Exception as db_err:
-            st.error(f"تعذر استعراض السجل: {db_err}")
+    st.markdown("### 📚 السجل التراكمي المعتمد للأبحاث (Master Study Register)")
+    st.caption("هذا السجل يوثق كافة النقاط التي تم رصدها عبر الجلسات الزمنية المختلفة، ويقوم بمقارنتها بالسعر الحقيقي للسوق لقياس كفاءة النموذج بدقة.")
 else:
-    with st.expander("📊 Research Log & Tracked Data Matrix"):
-        try:
-            conn = sqlite3.connect('s2pro_research.db')
-            log_df = pd.read_sql_query("SELECT * FROM tracking_log ORDER BY id DESC", conn)
-            conn.close()
-            if not log_df.empty:
-                st.dataframe(log_df)
-                csv_data = log_df.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Download Research Log as CSV", csv_data, "s2pro_research_log.csv", "text/csv")
+    st.markdown("### 📚 Master Academic Study Register")
+    st.caption("This register tracks all logged points across temporalframes and evaluates them against real-time market prices.")
+
+try:
+    conn = sqlite3.connect('s2pro_research_master.db')
+    master_df = pd.read_sql_query("SELECT * FROM master_study_log ORDER BY id DESC", conn)
+    conn.close()
+
+    if not master_df.empty:
+        # تحديث الأسعار الحالية وتقييم النجاح والخطأ لكل صف في السجل التراكمي
+        updated_rows = []
+        success_tally = 0
+        failure_tally = 0
+
+        for idx, row in master_df.iterrows():
+            ticker = row['ticker']
+            logged_ep = row['logged_ep']
+            sl = row['invalidation_sl']
+            t1 = row['target_t1']
+            trend = row['trend_condition']
+
+            # جلب السعر الحقيقي الآن للسوق
+            try:
+                live_obj = yf.Ticker(ticker)
+                hist_df = live_obj.history(period="1d")
+                curr_price = float(hist_df['Close'].iloc[-1]) if not hist_df.empty else logged_ep
+            except:
+                curr_price = logged_ep
+
+            # مقارنة علمية رياضية لتحديد الحالة
+            if "صاعد" in trend or "Bullish" in trend:
+                if curr_price >= t1:
+                    eval_res = "✅ نجح (Target Hit)"
+                    success_tally += 1
+                elif curr_price <= sl:
+                    eval_res = "❌ فشل (Stopped Out)"
+                    failure_tally += 1
+                else:
+                    eval_res = "⏳ قيد المراقبة (Active Tracking)"
             else:
-                st.info("No data logged yet. Run the analysis to record the first entry.")
-        except Exception as db_err:
-            st.error(f"Could not load log: {db_err}")
+                if curr_price <= t1:
+                    eval_res = "✅ نجح هبوطياً (Target Hit)"
+                    success_tally += 1
+                elif curr_price >= sl:
+                    eval_res = "❌ فشل (Stopped Out)"
+                    failure_tally += 1
+                else:
+                    eval_res = "⏳ قيد المراقبة (Active Tracking)"
+
+            updated_rows.append({
+                "ID": row['id'],
+                "التاريخ والوقت": row['study_date'],
+                "الأصل": row['asset_name'],
+                "الإطار": row['timeframe'],
+                "سعر الرصد (EP)": round(logged_ep, 2),
+                "السعر الحقيقي اللحظي": round(curr_price, 2),
+                "الهدف المعياري (T1)": round(t1, 2),
+                "وقف الفاعلية (SL)": round(sl, 2),
+                "حالة التقييم الأكاديمي": eval_res
+            })
+
+        display_df = pd.DataFrame(updated_rows)
+        
+        # مؤشرات الأداء الإحصائي للبحث
+        total_closed = success_tally + failure_tally
+        hit_ratio = (success_tally / total_closed * 100) if total_closed > 0 else 0.0
+
+        c1, c2, c3, c4 = st.columns(4)
+        if lang == "العربية":
+            c1.metric("إجمالي نقاط العينة المرصودة", len(display_df))
+            c2.metric("الحالات الناجحة ✅", success_tally)
+            c3.metric("الحالات المخالفة ❌", failure_tally)
+            c4.metric("نسبة النجاح الإحصائية", f"{hit_ratio:.1f}%")
+        else:
+            c1.metric("Total Sample Points", len(display_df))
+            c2.metric("Successful Cases ✅", success_tally)
+            c3.metric("Invalidated Cases ❌", failure_tally)
+            c4.metric("Statistical Hit Rate", f"{hit_ratio:.1f}%")
+
+        st.markdown("---")
+        st.dataframe(display_df, use_container_width=True)
+
+        # زر التحميل المعتمد للإرفاق في الورقة البحثية
+        export_csv = display_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 تحميل السجل التراكمي المعتمد بصيغة CSV لإرفاقه بالبحث الأكاديمي" if lang == "العربية" else "📥 Download Master Academic Log CSV",
+            data=export_csv,
+            file_name="s2pro_master_study_register.csv",
+            mime="text/csv"
+        )
+    else:
+        st.info("السجل فارغ حالياً. قم بالنقر على زر التشغيل بالأعلى لتسجيل أول نقطة بحثية في قاعدة السجلات." if lang == "العربية" else "Master log is empty. Run an analysis above to record the first point.")
+
+except Exception as db_err:
+    st.error(f"Error in master database register: {db_err}")
