@@ -68,11 +68,11 @@ selected_asset_name = st.sidebar.selectbox("اختر الأصل للتحليل �
 selected_ticker = assets_dict[selected_asset_name]
 timeframe_option = st.sidebar.selectbox("الإطار الزمني للدراسة" if lang == "العربية" else "Study Timeframe", ["يومي (Daily)", "أسبوعي (Weekly)"])
 
-# زر لتنفيذ الدراسة والتحليل وإضافتها للسجل الآلي
+# زر لتنفيذ الدراسة والتحليل وإضافتها للسجل
 run_analysis_btn = st.sidebar.button("🔬 تنفيذ التحليل وإضافته لسجل البحث")
 
 if run_analysis_btn:
-    with st.spinner("جاري جلب بيانات السوق وتحليل المؤشرات..." if lang == "Arabic" else "Analyzing market data..."):
+    with st.spinner("جاري جلب بيانات السوق وتحليل المؤشرات..." if lang == "العربية" else "Analyzing market data..."):
         try:
             stock_obj = yf.Ticker(selected_ticker)
             df = stock_obj.history(period="1y", interval="1d" if "يومي" in timeframe_option else "1wk")
@@ -145,7 +145,7 @@ try:
                 title = n.get('title', 'No Title')
                 publisher = n.get('publisher', 'Financial Source')
                 link = n.get('link', '#')
-                st.markdown(- **[{title}]({link})** — *{publisher}*")
+                st.markdown(f"- **[{title}]({link})** — *{publisher}*")
         else:
             st.info("لا توجد أخبار حديثة متاحة حالياً لهذا الأصل.")
 except Exception as ex:
