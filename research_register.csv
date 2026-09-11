@@ -1,0 +1,4 @@
+ID,Timestamp,Asset,Ticker,Timeframe,Entry (EP),Live Price,Target 1 (T1),Target 2 (T2),Target 3 (T3),Target 4 (T4),Stop Loss (SL),Status
+1,2026-09-11 13:15,سابك (SABIC),2010.SR,يومي (Daily),49.48,49.8,50.73,51.98,53.23,55.0,48.23,⏳ قيد المراقبة (Active)
+2,2026-09-11 13:15,مصرف الراجحي (Al Rajhi),1120.SR,أسبوعي (Weekly),66.1,66.0,67.58,69.06,70.54,72.5,64.62,⏳ قيد المراقبة (Active)
+3,2026-09-11 13:15,مؤشر تاسي (TASI),^TASI.SR,أسبوعي (Weekly),10720.28,11007.27,10621.0,10521.72,10422.44,10250.0,10819.56,❌ فشل (Stopped Out)
